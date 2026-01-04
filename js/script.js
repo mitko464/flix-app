@@ -74,6 +74,59 @@ async function displayPopularMovies() {
     })
 }
 
+// Display movie details
+async function displayMovieDetails() {
+    const movieId = window.location.search.split('=')[1];
+
+    const movie = await fetchAPIdata(`movie/${movieId}`);
+    const moviePoster = `https://image.tmdb.org/t/p/w500/${movie.poster_path}` || '../images/no-image.jpg';
+    console.log(movie)
+
+    const movieDetailsElement = document.createElement('div');
+
+    movieDetailsElement.innerHTML = `
+        <div class="details-top">
+            <div>
+                <img
+                    src="${moviePoster}"
+                    class="card-img-top"
+                    alt="${movie.title}"
+            />
+            </div>
+            <div>
+                <h2>${movie.title}</h2>
+                <p>
+                    <i class="fas fa-star text-primary"></i>
+                    ${movie.vote_average.toFixed(1)}
+                </p>
+                <p class="text-muted">Release Date: ${movie.release_date}</p>
+                <p>${movie.overview}</p>
+                <h5>Genres</h5>
+                <ul class="list-group">
+                    ${movie.genres.map(genre => `<li>${genre.name}</li>`).join("")}
+                </ul >
+        <a href="${movie.homepage}" target="_blank" class="btn">Visit Movie Homepage</a>
+            </div >
+        </div >
+        <div class="details-bottom">
+            <h2>Movie Info</h2>
+            <ul>
+                <li><span class="text-secondary">Budget:</span> $${addCommasToNuber(movie.budget)}</li>
+                <li><span class="text-secondary">Revenue:</span> $${addCommasToNuber(movie.revenue)}</li>
+                <li><span class="text-secondary">Runtime:</span> ${movie.runtime}</li>
+                <li><span class="text-secondary">Status:</span> ${movie.status}</li>
+            </ul>
+            <h4>Production Companies</h4>
+            <div class="list-group">
+                ${movie.production_companies.map(company => `<span>${company.name}</span>`).join(', ')}
+            </div>
+        </div>
+    `;
+
+    document.querySelector('#movie-details').appendChild(movieDetailsElement);
+
+}
+
 // Display popular shows
 async function displayPopularShows() {
     const { results } = await fetchAPIdata('tv/popular');
@@ -103,6 +156,12 @@ async function displayPopularShows() {
     })
 }
 
+
+// Add commas to number
+function addCommasToNuber(num) {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 // App init
 function init() {
     switch (global.currentPage) {
@@ -117,7 +176,7 @@ function init() {
             console.log("TV Details page");
             break;
         case "/movie-details.html":
-            console.log("Movie Details page");
+            displayMovieDetails();
             break;
         case "/search.html":
             console.log("Search page");
