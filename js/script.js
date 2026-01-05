@@ -1,11 +1,22 @@
 const global = {
-    currentPage: window.location.pathname
+    currentPage: window.location.pathname,
+    search: {
+        term: '',
+        type: '',
+        page: 1,
+        totalPages: 0,
+        totalResults: 39
+    },
+    api: {
+        apiKey: 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzMzI3ZTIxYzczYWU1ODlmZGEzZDBkYWIwOTFkNzZjOSIsIm5iZiI6MTc2NzU0Nzk5Ny4zMTMsInN1YiI6IjY5NWFhNDVkMTljY2MyZjU5MjNiZTE5ZCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.0rq2eNwfxya9GfSVl70WZKL2W7oqX0kYQc6_iXdXazo',
+        apiUrl: 'https://api.themoviedb.org/3/'
+    }
 }
 
 // Fetch data from TMDB API
 async function fetchAPIdata(endpoint) {
-    const API_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzMzI3ZTIxYzczYWU1ODlmZGEzZDBkYWIwOTFkNzZjOSIsIm5iZiI6MTc2NzU0Nzk5Ny4zMTMsInN1YiI6IjY5NWFhNDVkMTljY2MyZjU5MjNiZTE5ZCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.0rq2eNwfxya9GfSVl70WZKL2W7oqX0kYQc6_iXdXazo';
-    const API_URL = 'https://api.themoviedb.org/3/'
+    const API_TOKEN = global.api.apiKey;
+    const API_URL = global.api.apiUrl;
 
     const options = {
         method: 'GET',
@@ -25,6 +36,142 @@ async function fetchAPIdata(endpoint) {
     return data;
 }
 
+// Make request to Search API
+async function searchAPIData() {
+    const API_TOKEN = global.api.apiKey;
+    const API_URL = global.api.apiUrl;
+
+    const options = {
+        method: 'GET',
+        headers: {
+            accept: 'application/json',
+            Authorization: `Bearer ${API_TOKEN}`
+        }
+    }
+
+    showSpinner();
+
+    const response = await fetch(`${API_URL}search/${global.search.type}?language=en-US&query=${global.search.term}&page=${global.search.page}`, options);
+    const data = await response.json();
+
+    hideSpinner();
+
+    return data;
+}
+
+// Search movies/shows
+async function search() {
+    const queryString = window.location.search
+
+    const urlParams = new URLSearchParams(queryString);
+
+    global.search.type = urlParams.get('type');
+    global.search.term = urlParams.get('search-term');
+
+
+    if (global.search.term !== '' && global.search.term !== null) {
+        const { results, total_results, total_pages, page } = await searchAPIData();
+
+        global.search.page = page;
+        global.search.totalPages = total_pages;
+        global.search.totalResults = total_results;
+
+        if (results.length === 0) {
+            showAlert('No search results', 'error')
+        } else {
+            displaySearchResults(results);
+        }
+    } else {
+        showAlert('Please enter a search term');
+    }
+}
+
+// Display pagination
+function displayPagination() {
+    const pagination = document.createElement('div');
+    pagination.classList.add('pagination');
+    pagination.innerHTML = `
+        <button class="btn btn-primary" id="prev">Prev</button>
+        <button class="btn btn-primary" id="next">Next</button>
+        <div class="page-counter">Page ${global.search.page} of ${global.search.totalPages}</div>
+    `;
+
+    document.querySelector('#pagination').appendChild(pagination);
+
+    if (global.search.page === 1) {
+        document.querySelector('#prev').disabled = true;
+    }
+
+    if (global.search.page === global.search.totalPages) {
+        document.querySelector('#next').disabled = true;
+    }
+
+    document.querySelector('#prev').addEventListener('click', async () => {
+        global.search.page--;
+        const { results } = await searchAPIData();
+        displaySearchResults(results);
+    });
+
+    document.querySelector('#next').addEventListener('click', async () => {
+        global.search.page++;
+        const { results } = await searchAPIData();
+        displaySearchResults(results);
+    });
+}
+
+
+function showAlert(message, className = "error") {
+    const alertEl = document.createElement('div');
+    alertEl.classList.add('alert', className);
+    alertEl.appendChild(document.createTextNode(message))
+
+    document.querySelector('#alert').appendChild(alertEl);
+
+    setTimeout(() => {
+        alertEl.remove();
+    }, 3000)
+}
+
+// Display Search Results
+function displaySearchResults(results) {
+    document.querySelector('#search-results').innerHTML = '';
+    document.querySelector('#search-results-heading').innerHTML = '';
+    document.querySelector('#pagination').innerHTML = '';
+
+    results.forEach(result => {
+        const moviePoster = result.poster_path !== null ? `https://image.tmdb.org/t/p/w500/${result.poster_path}` : '../images/no-image.jpg';
+        const movieElement = document.createElement('div');
+        const resultType = global.search.type;
+
+        movieElement.classList.add('card');
+        movieElement.innerHTML = `
+            <a href="${resultType}-details.html?id=${result.id}">
+                <img
+                    src="${moviePoster}"
+                    class="card-img-top"
+                    alt="${resultType === "movie" ? result.title : result.name}"
+                />
+            </a>
+            <div class="card-body">
+                <h5 class="card-title">${resultType === "movie" ? result.title : result.name}</h5>
+                <p class="card-text">
+                <small class="text-muted">Release: ${resultType === "movie" ? result.release_date : result.first_air_date}</small>
+                </p>
+            </div>
+        `;
+
+        document.querySelector('#search-results').appendChild(movieElement);
+    });
+
+    document.querySelector('#search-results-heading').innerHTML = `
+        <h2>${results.length} of ${global.search.totalResults} results for ${global.search.term}</h2>
+    `;
+
+    displayPagination();
+
+
+}
+
 // Display popular movies
 async function displayPopularMovies() {
     const { results } = await fetchAPIdata('movie/popular');
@@ -37,9 +184,9 @@ async function displayPopularMovies() {
         movieElement.innerHTML = `
             <a href="movie-details.html?id=${movie.id}">
                 <img
-                src="${moviePoster}"
-                class="card-img-top"
-                alt="${movie.title}"
+                    src="${moviePoster}"
+                    class="card-img-top"
+                    alt="${movie.title}"
                 />
             </a>
             <div class="card-body">
@@ -59,7 +206,7 @@ async function displayMovieDetails() {
     const movieId = window.location.search.split('=')[1];
 
     const movie = await fetchAPIdata(`movie/${movieId}`);
-    const moviePoster = `https://image.tmdb.org/t/p/w500/${movie.poster_path}` || '../images/no-image.jpg';
+    const moviePoster = movie.poster_path !== null ? `https://image.tmdb.org/t/p/w500/${movie.poster_path}` : '../images/no-image.jpg';
 
     displayBackdropImage('movie', movie.backdrop_path);
 
@@ -72,7 +219,7 @@ async function displayMovieDetails() {
                     src="${moviePoster}"
                     class="card-img-top"
                     alt="${movie.title}"
-            />
+                />
             </div>
             <div>
                 <h2>${movie.title}</h2>
@@ -85,10 +232,10 @@ async function displayMovieDetails() {
                 <h5>Genres</h5>
                 <ul class="list-group">
                     ${movie.genres.map(genre => `<li>${genre.name}</li>`).join("")}
-                </ul >
-        <a href="${movie.homepage}" target="_blank" class="btn">Visit Movie Homepage</a>
-            </div >
-        </div >
+                </ul>
+                <a href="${movie.homepage}" target="_blank" class="btn">Visit Movie Homepage</a>
+            </div>
+        </div>
         <div class="details-bottom">
             <h2>Movie Info</h2>
             <ul>
@@ -119,9 +266,9 @@ async function displayPopularShows() {
         showElement.innerHTML = `
             <a href="tv-details.html?id=${show.id}">
                 <img
-                src="${showPoster}"
-                class="card-img-top"
-                alt="${show.name}"
+                    src="${showPoster}"
+                    class="card-img-top"
+                    alt="${show.name}"
                 />
             </a>
             <div class="card-body">
@@ -155,7 +302,7 @@ async function displayShowDetails() {
                     src="${showPoster}"
                     class="card-img-top"
                     alt="${show.name}"
-            />
+                />
             </div>
             <div>
                 <h2>${show.name}</h2>
@@ -168,10 +315,10 @@ async function displayShowDetails() {
                 <h5>Genres</h5>
                 <ul class="list-group">
                     ${show.genres.map(genre => `<li>${genre.name}</li>`).join("")}
-                </ul >
-        <a href="${show.homepage}" target="_blank" class="btn">Visit Movie Homepage</a>
-            </div >
-        </div >
+                </ul>
+                <a href="${show.homepage}" target="_blank" class="btn">Visit Movie Homepage</a>
+            </div>
+        </div>
         <div class="details-bottom">
             <h2>Movie Info</h2>
             <ul>
@@ -190,12 +337,9 @@ async function displayShowDetails() {
     document.querySelector('#show-details').appendChild(showDetailsElement);
 }
 
-// Disply slider
+// Display slider
 async function displaySlider() {
     const { results } = await fetchAPIdata('movie/now_playing');
-
-    console.log(results);
-
 
     results.forEach(movie => {
         const slide = document.createElement('div');
@@ -213,7 +357,7 @@ async function displaySlider() {
         document.querySelector('.swiper-wrapper').appendChild(slide);
     });
 
-    const swiper = new Swiper('.swiper', {
+    new Swiper('.swiper', {
         loop: true,
         slidesPerView: 1,
         spaceBetween: 30,
@@ -242,16 +386,15 @@ function highlightActiveLink() {
     const links = document.querySelectorAll(".nav-link");
     links.forEach(link => {
         if (link.getAttribute('href') === global.currentPage) {
-            link.classList.add('active')
+            link.classList.add('active');
         }
     });
 }
 
-// Show spinner
+// Show/hde spinner
 function showSpinner() {
     document.querySelector('.spinner').classList.add('show');
 }
-// Hide spinner
 function hideSpinner() {
     document.querySelector('.spinner').classList.remove('show');
 }
@@ -301,7 +444,7 @@ function init() {
             displayMovieDetails();
             break;
         case "/search.html":
-            console.log("Search page");
+            search();
             break;
         default:
             console.log("404 Page Not Found");
