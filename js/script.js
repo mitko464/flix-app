@@ -188,7 +188,53 @@ async function displayShowDetails() {
     `;
 
     document.querySelector('#show-details').appendChild(showDetailsElement);
+}
 
+// Disply slider
+async function displaySlider() {
+    const { results } = await fetchAPIdata('movie/now_playing');
+
+    console.log(results);
+
+
+    results.forEach(movie => {
+        const slide = document.createElement('div');
+        slide.classList.add('swiper-slide');
+
+        slide.innerHTML = `
+            <a href="movie-details.html?id=${movie.id}">
+                <img src="https://image.tmdb.org/t/p/w500${movie.poster_path}" alt="${movie.title}" />
+            </a>
+            <h4 class="swiper-rating">
+                <i class="fas fa-star text-secondary"></i> ${movie.vote_average.toFixed(1)} / 10
+            </h4>
+        `;
+
+        document.querySelector('.swiper-wrapper').appendChild(slide);
+    });
+
+    const swiper = new Swiper('.swiper', {
+        loop: true,
+        slidesPerView: 1,
+        spaceBetween: 30,
+        autoplay: {
+            delay: 3000,
+        },
+        breakpoints: {
+            400: {
+                slidesPerView: 1,
+            },
+            500: {
+                slidesPerView: 2,
+            },
+            768: {
+                slidesPerView: 3,
+            },
+            1000: {
+                slidesPerView: 4,
+            }
+        }
+    });
 }
 
 // Highlight active link
@@ -243,6 +289,7 @@ function init() {
         case "/":
         case "/index.html":
             displayPopularMovies();
+            displaySlider();
             break;
         case "/shows.html":
             displayPopularShows();
